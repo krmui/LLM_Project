@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>南方智能助手界面</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .pdf-link {
+            display: inline-flex;
+            align-items: center;
+            color: #2185d0;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(33, 133, 208, 0.3);
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            margin: 3px 0;
+        }
+
+        .pdf-link:hover {
+            background: #e8f4ff;
+            border-bottom-color: #1678c2;
+        }
+
+        .pdf-link::before {
+            content: "📄";
+            margin-right: 5px;
+            font-size: 0.9em;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .chat-box, .tool-box {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .history {
+            height: 60vh;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background: #e3f2fd;
+            margin-left: auto;
+        }
+
+        .bot-message {
+            background: #f5f5f5;
+            margin-right: auto;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #007bff;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .loading {
+            display: none;
+            color: #666;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .media-content {
+            margin-top: 10px;
+            max-width: 100%;
+        }
+
+        .media-content img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 5px 0;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .media-content img:hover {
+            transform: scale(1.05);
+        }
+
+        .paper-result {
+            background: #fff9e6;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .history {
+                height: 50vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-box">
+            <div class="history" id="chatHistory"></div>
+            <div class="loading" id="loading">思考中...</div>
+            <div class="input-area">
+                <input type="text" id="userInput" placeholder="输入您的问题（例如：生成一张熊猫在竹林里的图片）">
+                <button onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+
+        <div class="tool-box">
+            <h3>支持功能</h3>
+            <ul>
+                <li>🔍 互联网实时搜索</li>
+                <li>🎨 文生图（中文描述）</li>
+                <li>📚 学术论文检索</li>
+                <li>🔊 文本转语音</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+    const chatHistory = document.getElementById('chatHistory');
+    const userInput = document.getElementById('userInput');
+    const loading = document.getElementById('loading');
+
+    function appendMessage(role, content) {
+      const div = document.createElement('div');
+      div.className = `message ${role}-message`;
+
+      // 链式处理：音频 → 图片 → 链接 → 换行
+      let processedContent = content
+        .replace(/\[点击播放音频\]\s*\(([^)]+)\)/g, (match, path) => {
+          return `
+            <div class="media-content">
+              <audio controls style="margin-top:10px;">
+                <source src="${path}" type="audio/mpeg">
+                您的浏览器不支持音频播放
+              </audio>
+            </div>
+          `;
+        })
+        .replace(/!\[(.*?)\]\(([^)]+)\)/g, (match, altText, path) => {
+          const timestamp = Date.now();
+          return `
+            <div class="media-content">
+              <img src="${path}?t=${timestamp}" alt="${altText || '生成的图片'} "style="max-height:300px; cursor:pointer; border-radius:8px;" onclick="this.style.maxHeight = this.style.maxHeight === 'none' ? '300px' : 'none'">
+            </div>
+          `;
+        })
+        .replace(/(https?:\/\/[^\s"')<]+)/g, '<a href="$1" target="_blank" class="pdf-link">链接</a>')
+        .replace(/\n/g, '<br>');
+
+      div.innerHTML = processedContent;
+      chatHistory.appendChild(div);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const query = userInput.value.trim();
+        if (!query) return;
+
+        userInput.value = '';
+        loading.style.display = 'block';
+        appendMessage('user', query);
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query })
+            });
+
+            const data = await response.json();
+            appendMessage('bot', data.response);
+        } catch (error) {
+            appendMessage('bot', `请求失败：${error.message}`);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+    </script>
+</body>
+</html>

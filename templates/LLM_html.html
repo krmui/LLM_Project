@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>智能助手界面</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 20px;
+        }
+
+        .chat-box {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .history {
+            height: 60vh;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .user-message {
+            background: #e3f2fd;
+            margin-left: 20%;
+        }
+
+        .bot-message {
+            background: #f5f5f5;
+            margin-right: 20%;
+        }
+
+        .tool-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            margin: 10px 0;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            float: right;
+        }
+
+        .loading {
+            display: none;
+            color: #666;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .media-content {
+            margin-top: 10px;
+            max-width: 100%;
+        }
+
+        .media-content img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 5px 0;
+        }
+
+        .paper-result {
+            background: #fff9e6;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-box">
+            <div class="history" id="chatHistory"></div>
+            <div class="loading" id="loading">思考中...</div>
+            <input type="text" id="userInput" placeholder="输入您的问题（例如：生成一张熊猫在竹林里的图片）">
+            <button onclick="sendMessage()">发送</button>
+        </div>
+
+        <div class="tool-box">
+            <h3>支持功能</h3>
+            <ul>
+                <li>🔍 互联网实时搜索</li>
+                <li>🎨 文生图（中文描述）</li>
+                <li>📚 学术论文检索</li>
+                <li>🔊 文本转语音</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const chatHistory = document.getElementById('chatHistory');
+        const userInput = document.getElementById('userInput');
+        const loading = document.getElementById('loading');
+
+        function appendMessage(role, content) {
+            const div = document.createElement('div');
+            div.className = `message ${role}-message`;
+
+            // 处理不同类型的内容
+            if (content.includes('保存路径：')) {
+                const files = content.split('：')[1].split(', ');
+                div.innerHTML = files.map(file => {
+                    if (file.match(/\.(mp3|wav)$/i)) {
+                        return `<div>${content}<br>
+                                <audio controls><source src="${file}" type="audio/mpeg"></audio></div>`;
+                    } else if (file.match(/\.(jpg|png|gif)$/i)) {
+                        return `<div>${content}<br><img src="${file}" class="media-content"></div>`;
+                    }
+                    return content;
+                }).join('');
+            } else if (content.includes('链接：http')) {
+                // 处理论文结果
+                const papers = content.split('\n\n');
+                div.innerHTML = papers.map(paper =>
+                    `<div class="paper-result">${paper.replace(/\n/g, '<br>')}</div>`
+                ).join('');
+            } else {
+                div.textContent = content;
+            }
+
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const query = userInput.value.trim();
+            if (!query) return;
+
+            userInput.value = '';
+            loading.style.display = 'block';
+            appendMessage('user', query);
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+                appendMessage('bot', data.response);
+            } catch (error) {
+                appendMessage('bot', `请求失败：${error.message}`);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // 支持回车发送
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
